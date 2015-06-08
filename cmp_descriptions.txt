@@ -1,0 +1,262 @@
+#########################################################################################
+1.       Predefined macros
+1.1.     CMP_DEF_THIS
+1.2.     CMP_CONNECT and CMP_BIND
+1.3.     CMP_DEF_GET_PROC
+1.4.     __CMP_NO_INIT_FUNC_ and __CMP_NO_DEINIT_FUNC_
+1.5.     __CMP_NO_INIT_MFUNC__ and __CMP_NO_DEINIT_MFUNC__
+1.6.     __THR_NO_INIT_PROC__ and __THR_NO_DEINIT_PROC__
+
+2.       Predefined component
+2.1.     Simple component (CMP_DEF)
+2.2.     Pusher threader (CMP_PUSH_THREADER)
+2.3.     Thread component (CMP_DEF_THREAD)
+2.4.     Threads component (CMP_DEF_THREADS)
+2.5.     Signalized puffer (CMP_DEF_SGPUFFER)
+2.6.     Recycle puffer (CMP_DEF_RECPUFFER)
+#########################################################################################
+
+//-----------------------------------------------------------------
+//------------------ 1. Predefined macros -------------------------
+//-----------------------------------------------------------------
+
+1.1. CMP_DEF_THIS(cmp_foo_t, _bar); 
+     Declare a variable this with a type cmp_foo_t and assign it with _bar
+
+1.2. CMP_CONNECT(foo, bar); or CMP_BIND(foo, bar); 
+     Assign foo to bar. (foo = bar).
+     CMP_CONNECT is conventionally used for assigning a function
+     pointer to another function pointer, meanwhile CMP_BIND 
+     is conventionally used for assign a function pointer to 
+     a function.
+     
+1.3. CMP_DEF_GET_PROC(get_foo, cmp_foo_t, _cmp_foo);
+     Generate the following function:
+     cmp_foo_t get_foo(){ return _cmp_foo; }
+
+1.4. __CMP_NO_INIT_FUNC_ or __CMP_NO_DEINIT_FUNC_ 
+     gives a function name that do not do anything.
+
+1.5. __CMP_NO_INIT_MFUNC__ or __CMP_NO_DEINIT_MFUNC__
+     gives a function name with void* parameter do nothing. 
+
+//-----------------------------------------------------------------
+//------------------ 2. Predefined component ----------------------
+//-----------------------------------------------------------------
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2.1. Simple component (CMP_DEF)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+typedef struct _cmp_foo_struct_t
+{
+	void   (*receiver)(bar_t*);
+	void   (*send)(bar_t*);
+}_cmp_foo_t;
+
+static void _cmp_foo_process(bar_t*);
+#define CMP_NAME_FOO "Foo component"
+CMP_DEF(static, 		  //type of definitions
+	cmp_foo_t, 	          //type of component
+	CMP_NAME_FOO, 		  //name of the component
+	_cmp_foo, 			  //variable name of the component
+	_cmp_foo_ctor, 		  //name of the constructor process implemented automatically
+	_cmp_foo_dtor, 		  //name of the destructor process implemented automatically
+	__CMP_NO_INIT_FUNC_,  //name of the external process called after construction
+	__NO_TEST_FUNC_, 	  //name of the external process called after initialization
+	__CMP_NO_DEINIT_FUNC_ //name of the external process called before destruction
+);
+#undef CMP_NAME_FOO
+
+//-----------------------Description--------------------------------------
+// CMP_DEF generates a proper predefined generic code to the component. 
+// It makes the constructor and the destructor. If you have any further 
+// tasks related to the construction you can give a component initialization 
+// function, which is going to be called right after the component is 
+// constructed. Similarly you can give the deinitialization process. 
+// You can see in definitions there is a name definition and a function 
+// declaration. The name is a string use for providing usable informations 
+// about the component states in logfiles. The function declared here will 
+// be the main process function belongs to the component receiver plug.
+//------------------------------------------------------------------------
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2.2. Pusher threader (CMP_PUSH_THREADER)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#define CMP_NAME_FOO "Foo component"
+CMP_PUSH_THREADER(bar_t,
+	forwarder,
+	CMP_NAME_FOO,
+	_forwarder_start,
+	_forwarder_stop
+);
+
+//-----------------------Description--------------------------------------
+// CMP_PUSH_THREADER define a component defines a component with a receiver 
+// and send pointer and the task of this component is to separating the send
+// function from the receiver function in different thread, and thereby the 
+// two process can run parallely. It doesn’t contiains puffer, thereby 
+// if this component got a data and hasn’t finished the previous one, 
+// the sender waits until the other component finishes its task. 
+// In other word, it blocks the producer thread and wait the consumer until 
+// it finishes the previous data to consume.
+//------------------------------------------------------------------------
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2.3. Thread component (CMP_DEF_THREAD)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+typedef struct _cmp_foo_struct_t
+{
+	bar_t* (*demand)();
+	void   (*send)(bar_t*);
+}_cmp_foo_t;
+
+static void _cmp_foo_init();
+static void _thr_foo_proc_main(thread_t*);
+#define CMP_NAME_FOO "Foo component"
+CMP_THREAD(
+        static,                 //type of declaration
+       cmp_foo_t,               //type of the threaded component
+       foo,                     //unique name used for identify a thread and a component
+       CMP_NAME_FOO,            //name of the component
+       _cmp_foo_init,           //name of the process initialize the component
+       __CMP_NO_DEINIT_FUNC_,   //name of the process deinitialize the component
+       _cmp_foo_start,          //name of the process activate the thread
+       _cmp_foo_stop,           //name of the process deactivate the thread
+       _thr_foo_proc_main       //name of the process called in the thread
+       );
+#undef CMP_NAME_FOO
+      
+void  _thr_foo_proc_main(thread_t *thread)
+{
+    CMP_DEF_THIS(_cmp_foo_t, (_cmp_foo_t*) thread->arg);
+    //Initializations
+    bar_t *item;
+    
+    //thread loop
+    do{
+    	item = this->demand();
+    	//...do something...  
+    	this->send(item);  
+    }
+    while(thread->state == THREAD_STATE_RUN);
+} 
+//-----------------------Description--------------------------------------
+// This module generates a component with an ability to run it on a separated
+// thread. The _cmp_foo_start() and _cmp_foo_stop() method are generated for
+// activating and deactivating the thread for the component. The 
+// _thr_foo_proc_main(thread_t *thread) is going to be called as an entry point
+// of the thread and thread->arg attribute contains a pointer pointing to
+// the object of cmp_foo_t type. 
+//------------------------------------------------------------------------
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2.4. Threads component (CMP_DEF_THREADS)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+typedef struct _cmp_foo_struct_t
+{
+	int32_t *id;
+	bar_t* (*demand)();
+	void   (*send)(bar_t*);
+}_cmp_foo_t;
+
+static void _thr_foo_init(thread_t*);
+static void _thr_foo_proc_main(thread_t*);
+static void _cmp_foo_deinit(_cmp_foo_t*);
+CMP_THREADS(static,              //type of declarations
+		_cmp_foo_t,              //type of components
+		foo,		             //unique name used for identifying generated variables and processes
+		CMP_NAME_CONLISTENER,    //name of the component running in the thread
+		_foos_ctor,              //name of the constructor process used for creating a thread chain
+		_foos_dtor,              //name of the destructor process used for disposing a thread chain
+		_itr_foos,               //name of the iterator process
+		_thr_foo_init,           //name of the process initialize a thread
+		__CMP_NO_INIT_MFUNC__,   //name of the process initialize a component
+		__THR_NO_DEINIT_PROC__,  //name of the process deinitialize a thread
+		_cmp_foo_deinit,         //name of the process deinitialize a component
+		_thr_foo_proc_main,      //name of the thread process called after initialization
+		bar_t,                   //name of the type used for activating different thread
+		bar,                     //name of the attribute inside the component used for pointing to the activator type
+		_foo_start,			     //name of the process used creating and activating a component
+		_foo_stop                //name of the process used for deactivating and disposing a threaded component
+		)
+//-----------------------Description--------------------------------------
+// The main difference from the CMP_THREAD, where only one thread is executed 
+// as an instance of the component, here more thread is defined as individual 
+// instances of the same component. We achieve this by using the CMP_THREADS 
+// macro. The obligation of using it is to define an attribute inside 
+// the component structure definition which identifying somehow the instance. 
+// Here we used a separated array of integers for this purpuse. 
+// Another difference that the generated init, deinit, start and stop methods 
+// are require parameters pointing to an instance. The start, stop requires 
+// the parameter defined in the attribute in the structure to determine 
+// which component it has to start, the init and the deinit function passes 
+// the component instance itself as a this parameter.
+//------------------------------------------------------------------------
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2.5. Signalized puffer (CMP_DEF_SGPUFFER)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#define CMP_DATA_PUFFER_SIZE 16
+#define CMP_NAME_PUFFER "Foo puffer"
+CMP_DEF_SGPUFFER(
+			static,					/*type of declaration*/
+			bar_t,				    /*type of items*/
+			cmd_dtor,			    /*name of the destrctor process*/
+			CMP_NAME_PUFFER,        /*name of the component*/
+			_cmp_foopuffer,		    /*name of the variable used for referencing it*/
+			CMP_DATA_PUFFER_SIZE,	/*maximal number of items in the puffer*/
+			_cmp_foopuffer_ctor,	/*name of the process used for constructing*/
+			_cmp_foopuffer_dtor	    /*name of the process used for destructing*/
+		);
+#undef CMP_NAME_PUFFER
+#undef CMP_DATA_PUFFER_SIZE
+
+//-----------------------Description--------------------------------------
+//A signalized puffer is a thread safe puffer uses conditional waiting and 
+//mutexes in the case they are full or empty. In other words they are 
+//blocking the caller thread if the puffer reaches its limits.
+//------------------------------------------------------------------------
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2.6. Recycle puffer (CMP_DEF_RECPUFFER)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#define CMP_DATA_PUFFER_SIZE 64
+#define CMP_NAME_PUFFER "Foo puffer"
+static bar_t* bar_ctor();
+static void bar_dtor(bar_t*);
+static void clean_bar(bar_t*);
+CMP_DEF_RECPUFFER(
+	static,               /*type of the declarations*/
+	packet_t,             /*name of the type of the items*/
+	bar_ctor,             /*name of the process used for constructing an item if the puffer is empty.*/
+	bar_dtor,             /*name of the process used for deconstruting an item if the puffer is full.*/
+	clean_bar,            /*name of the process clear the item when the recycle receives it*/
+	CMP_NAME_PUFFER,      /*name of the recycle puffer*/
+	_cmp_foo,             /*name of the variable used for referencing to the recycle*/
+	CMP_DATA_PUFFER_SIZE, /*length of the recycle puffer*/
+	_cmp_foo_ctor,        /*name of the constructor process for this recycle*/
+	_cmp_foo_dtor         /*name of the destructor process for this recycle*/
+);
+#undef CMP_DATA_PUFFER_SIZE
+#undef CMP_NAME_PUFFER
+
+//-----------------------Description--------------------------------------
+// Recycle puffer is invented for reusing allocated bytes for a specific 
+// data type in a data-flow. it never blocks a thread and it uses spinlocks
+// instead of mutexes. If the puffer is empty it calls the bar_ctor function, 
+// which creates bar_t object. If the puffer is full the bar_dtor is going 
+// to be called for the item, if it is not empty the bar_clean is going to 
+// be called for setting the necessary values to default for reusing purpuse.
+//------------------------------------------------------------------------
+

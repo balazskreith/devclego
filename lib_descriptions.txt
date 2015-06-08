@@ -1,0 +1,779 @@
+#########################################################################################
+1.       Threading
+1.1.     Define, start, stop a thread
+1.2.     Locks
+1.2.1.   Simple mutexes
+1.2.2.   Read/Write mutexes
+1.2.3.   Spinlocks
+1.3.     Syncronization between threads
+1.3.1.   Data syncronization: using dmap in thread safe way
+1.3.2.   Process syncronizations
+1.3.2.1. Signals
+1.3.2.2. Barriers
+
+2.       Interrupting
+2.1.     Define simple interrupt handler
+2.2.     Define timed interrupt
+
+3.       Timers
+
+4.       Finite State Machines
+
+5.       Datapuffer
+5.1.     Single headed circular puffer
+5.2.     Multi headed circular puffer
+
+6.       Callbacks
+#########################################################################################
+
+------------------------------------------------------------------------------------------
+---------------------------- 1. Threading  -----------------------------------------------
+------------------------------------------------------------------------------------------
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1.1. Define, then Start/Stop
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+//---------------------------------------------------------
+#include "devclego/lib_threading.h"
+
+thread_t *thread;
+void* bar(void *arg);
+void foo()
+{
+	
+	int num;	
+	thread = make_thread(bar,&num);
+	num = 5;
+	start_thread(thread);
+	thread_sleep(10); 	
+	stop_thread(thread);
+	dispose_thread(thread);
+}
+
+void* bar(void *arg)
+{
+	int* num = (int*) arg;
+	thread->state = THREAD_STATE_RUN;
+	do{
+		printf("Number: %d\n", *num);	
+	}while(thread->state == THREAD_STATE_RUN);
+	thread->state = THREAD_STATE_STOPPED;
+	
+}
+//-------------------- Example 1.1. --------------------
+
+Threads has a state member, which used for indicate the state of the thread.
+These states can be the following:
+THREAD_STATE_CONSTRUCTED, THREAD_STATE_READY, THREAD_STATE_STARTED, 
+THREAD_STATE_RUN, THREAD_STATE_STOP, THREAD_STATE_STOPPED
+
+If we make a thread, it will automatically construct and set up it, the 
+thread state is equa to THREAD_STATE_READY. The start_thread set 
+the state to THREAD_STATE_STARTED, and the stop_thread checks weather 
+the thread state is THREAD_STATE_RUN or not, and set the thread state into 
+THREAD_STATE_STOPPED and wait for 10*50ms to get the value stopped 
+otherwise it cancels the thread. 
+You have to explicitly set the thread state to THREAD_STATE_RUN if you
+do the job and THREAD_STATE_STOPPED if you finished it.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1.2. Locks
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Provides methods for accessing shared data.
+
+××××××××××××××××××××××××××××××××××××××××××××××××××××××××××××
+1.2.1. Simple mutexes
+××××××××××××××××××××××××××××××××××××××××××××××××××××××××××××
+
+Descriptions:
+[1] http://en.wikipedia.org/wiki/Mutex
+
+//---------------------------------------------------------
+#include "devclego/lib_threading.h"
+
+mutex_t  *mutex;
+void foo()
+{
+	mutex = mutex_ctor();
+	mutex_lock();
+	
+	//... do something ...
+	
+	mutex_unlock();
+	mutex_dtor(mutex);
+}
+//-------------------- Example 1.2.1. --------------------
+
+Comments:
+Mutex blocks the thread until a lock is active. It usually takes micros
+to wake it up. 
+
+××××××××××××××××××××××××××××××××××××××××××××××××××××××××××××
+1.2.2. Read/Write mutexes
+××××××××××××××××××××××××××××××××××××××××××××××××××××××××××××
+
+Description:
+[1] http://en.wikipedia.org/wiki/Readers%E2%80%93writer_lock
+[2] http://doc.qt.digia.com/qq/qq11-mutex.html
+
+//---------------------------------------------------------
+#include "devclego/lib_threading.h"
+
+rwmutex_t *rwmutex;
+void foo()
+{
+	rwmutex = rwmutex_ctor();
+	rwmutex_read_lock(rwmutex);
+	//... reading ...
+	rwmutex_read_unlock(rwmutex);
+	
+	rwmutex_write_lock(rwmutex);
+	//... writing ...
+	rwmutex_write_unlock(rwmutex);
+	rwmutex_dtor(rwmutex);
+}
+//-------------------- Example 1.2.2 --------------------
+
+Comments:
+
+××××××××××××××××××××××××××××××××××××××××××××××××××××××××××××
+1.2.3. Spinlocks
+××××××××××××××××××××××××××××××××××××××××××××××××××××××××××××
+
+Description:
+[1] http://en.wikipedia.org/wiki/Spinlock
+
+//---------------------------------------------------------
+#include "devclego/lib_threading.h"
+
+spin_t *spin;
+void foo()
+{
+	spin = spin_ctor();
+	
+	spin_lock(spin);
+	//... do something ...
+	spin_unlock(spin);
+	
+	spin_dtor(spin);
+}
+//-------------------- Example 1.2.3 --------------------
+
+Comments:
+For very short time, for multiCPU systems.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1.3. Syncronization between threads
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+××××××××××××××××××××××××××××××××××××××××××××××××××××××××××××
+1.3.1. Data syncronization: using dmap in thread safe way
+××××××××××××××××××××××××××××××××××××××××××××××××××××××××××××
+
+dmap is a concept for accessing data as fast as I could implemented
+at the time when I figured it out. Also it gives general wrapper function
+fo thread safe accessing. It looks like a db table, without a 
+possibility of foreign keys. 
+
+For defining a dmap table you have to do the following 4 steps:
+
+1. define a struct with a constructor and a destructor:
+
+//---------------------------------------------------------
+//this is foo_defs.h
+
+typedef struct foo_struct_t
+{
+	int x;
+	int y;
+}foo_t;
+
+foo_t* foo_ctor()
+{
+	return (foo_t*) malloc(sizeof(foo_t));
+}
+
+void foo_dtor(foo_t *foo)
+{
+	free(foo);
+}
+//-------------------- Example 1.3.1.1 --------------------
+
+2. define a header for a dmap table for the above defined struct
+
+//-------------------------foo_table.h--------------------------
+#include "devclego/dmap.h"
+#include "foo_defs.h"
+
+DMAP_DECL_SPECT_TABLE(
+	foo_t,		 		   /*type of the items stored in the table*/
+	dmap_get_table_foo,	   /*name of the process gets the table*/
+	dmap_get_foo,		   /*name of the process gets an item from the table by index*/
+	dmap_add_foo,		   /*name of the process adds an item and returns with its index*/
+	dmap_rem_foo_byindex,  /*name of the process remove an item from the table by index*/
+	dmap_rem_foo, 		   /*name of the process remove an item from the table by pointer*/
+	dmap_rdlock_table_foo,  /*name of the process lock the table for reading*/
+	dmap_rdunlock_table_foo,/*name of the process unlock the table from reading*/
+	dmap_wrlock_table_foo,  /*name of the process lock the table for writing*/
+	dmap_wrunlock_table_foo,/*name of the process unlock the table from writing*/
+	dmap_itr_table_foo	   /*name of the process iterate the table*/
+);
+//-------------------- Example 1.3.1.2 --------------------
+
+3. define the table in the body file
+
+//-------------------------foo_table.c--------------------------
+#include "devclego/dmap.h"
+#include "foo_defs.h"
+
+DMAP_DEF_SPECT_TABLE(																	 		 \
+	foo_t,		 		   /*name of the specific data type*/									 \
+	foo_dtor,			   /*name of the destructor for the specified data*/					 \
+	_dmap_table_foo,	   /*name of the variable reference to the table*/						 \
+	DMAP_NAME_TABLE_CON,   /*name of the table*/						 	     				 \
+	MPT_MAX_CONNECTION_NUM,/*maximal number of item the table can footain. */                    \
+	dmap_init_table_foo,   /*name of the process initialize the table*/                          \
+	dmap_deinit_table_foo, /*name of the process deinitialze the table*/                         \
+	dmap_get_table_foo,	   /*name of the process gets the table*/								 \
+	dmap_get_foo,		   /*name of the process gets an item from the table by index*/			 \
+	dmap_add_foo,		   /*name of the process adds an item and returns with its index*/  	 \
+	dmap_rem_foo_byindex,  /*name of the process remove an item from the table by index*/   	 \
+	dmap_rem_foo, 		   /*name of the process remove an item from the table by pointer*/ 	 \
+	dmap_rdlock_table_foo,  /*name of the process lock the table for reading*/					 \
+	dmap_rdunlock_table_foo,/*name of the process unlock the table from reading*/				 \
+	dmap_wrlock_table_foo,  /*name of the process lock the table for writing*/					 \
+	dmap_wrunlock_table_foo,/*name of the process unlock the table from writing*/				 \
+	dmap_itr_table_foo	   /*name of the process iterate the table*/							 \
+);
+//-------------------- Example 1.3.1.3 --------------------
+
+4. Init and deinit the table in the dmap_init and dmap_deinit functions
+(dmap_init and dmap_deinit are functions which defined in the dmap.h header file,
+but didn't have a body file. The dmap_init and dmpa_deinit functions have to be called
+in the main program, before you use the dmap)
+
+//-------------------------foo_table.c--------------------------
+#include "devclego/dmap.h"
+
+void dmap_init()
+{
+	dmap_init_table_foo();
+}
+
+void dmap_deinit()
+{
+	dmap_deinit_table_foo();
+}
+
+//-------------------- Example 1.3.1.4 --------------------
+
+Then you can use it anywhere where you import the foo_table.h
+
+//-------------------------foo_table.c--------------------------
+#include "foo_table.h"
+
+void bar()
+{
+	foo_t foos[3], *fooptr;
+	int32_t i, dmap_id;
+	
+	dmap_wrlock_table_foo();
+	for(i = 0; i < 3; ++i){
+	   dmap_id = dmap_add_foo(foos[i]);
+	}
+	dmap_wrunlock_table_foo();
+	
+	dmap_rdlock_table_foo();
+	fooptr = dmap_get_foo(dmap_id);
+	printf("dmap id: %d, foo->x: %d", dmap_id, fooptr->x);
+	
+	for(i=0; dmap_itr_table_foo(&i, &fooptr) == BOOL_TRUE; ++i){
+		printf("dmap_id: %d foo->x: %d\n", i, fooptr->x);
+	}	
+	dmap_rdunlock_table_foo();
+}
+//-------------------- Example 1.3.1.4 --------------------
+
+
+
+××××××××××××××××××××××××××××××××××××××××××××××××××××××××××××
+1.3.2. Process syncronizations
+××××××××××××××××××××××××××××××××××××××××××××××××××××××××××××
+
+Next to locks there are two syncronization method implemented in the devclego.
+
+°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°
+1.3.2.1. Signals
+°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°
+
+It is called conditional waiting and the name confuses with the operating system 
+signals. Why It is renamed here? Because I named like this.
+A process send a signal to another and the other wait for it. 
+Operating system signals are called interrupts in devclego. 
+
+Description: 
+[1] http://en.wikipedia.org/wiki/Monitor_(synchronization)
+
+
+//-------------------------------------------------------
+#include "devclego/lib_threading.h"
+
+signal_t* signal;
+void foo()
+{
+	signal = signal_ctor();
+	signal_lock(signal);
+	
+	signal_wait(signal);
+	
+	signal_unlock(signal);
+	signal_dtor(signal);
+}
+
+void bar() //parallel with foo, but after signal is constructed
+{
+	signal_lock(signal);
+	signal_set(signal);
+	signal_unlock(signal);
+}
+//-------------------- Example 1.3.2.1. --------------------
+
+°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°
+1.3.2.2. Barriers
+°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°
+
+Description:
+[1] http://en.wikipedia.org/wiki/Barrier_(computer_science)
+
+//-------------------------------------------------------
+#include "devclego/lib_threading.h"
+
+barrier_t* barrier;
+void foo()
+{
+	barrier = make_barrier(2);
+	
+	barrier_wait(barrier);
+}
+
+void bar() //parallel with foo, but after barrier is maked
+{
+	barrier_wait(barrier);
+}
+//-------------------- Example 1.3.2.2. --------------------
+
+If you set the gatenum in make_barrier 2 at the point you set 
+the barrier_wait(barrier) in barrier it will waits for 2 thread
+set the barrier_wait and then let all thread go.
+
+
+------------------------------------------------------------------------------------------
+---------------------------- 2. Interrupting  --------------------------------------------
+------------------------------------------------------------------------------------------
+
+Interrupts are signals come from the OS, used for IPC.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2.1. Define simple interrupt handler
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+//-------------------------------------------------------
+#include "devclego/lib_interrupting.h"
+
+void sigint_handler(int signum);
+void main()
+{
+	interrupt_t interrupt;
+	init_interrupt(&interrupt, SIGINT, BOOL_TRUE);
+	set_interrupt_sh(&interrupt, sigint_handler);
+	interrupt_unblock(&interrupt);
+}
+
+void sigint_handler(int signum)
+{
+	printf("handling interrupts");
+}
+ 
+//-------------------- Example 2.1.1. --------------------
+
+In init_interrupt(&interrupt, SIGINT, BOOL_TRUE), the SIGINT is the signal number
+the operating system (Linux) send to the process, the third parameter
+indicates weather the siganl is initially blocked or not. 
+Blocked signals will be not handled until its unblocked.
+set_interrupt_sh defines a simple handler for interrupt.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2.2. Define timed interrupt
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If we for an Instance define a puffer and a process fills it up 
+ with packets and you want to flush this puffer exacly 16ms periods, you have
+several ways to do that devclego provides two way:
+Either you can define another process with a timer (see below) or you can define 
+an interrupt come from the OS and interrupting the filling process and do adequated task.
+This looks like as follows:
+
+//---------------------------------------------------
+#include "devclego/lib_interrupting.h"
+
+void flusher(int signum);
+datapuffer_t *puffer;
+void main()
+{
+	interrupt_t interrupt;
+	init_interrupt(interrupt, SIGRTMIN, BOOL_TRUE);
+	set_interrupt_sh(interrupt, flusher);
+
+	//set_timeinterval(interrupt_ptr,  seconds, miliseconds, microseconds, nanoseconds);
+	set_timeinterval(&interrupt->period,  0, 16, 0, 0);
+	set_timeinterval(&interrupt->initial, 0, 16, 0, 0);
+
+	interrupt_arm(interrupt, CLOCK_REALTIME);
+	interrupt_unblock(interrupt);
+	
+	puffer = datapuffer_ctor(1 << 20);
+	packet_t *packet;
+	do{
+		packet = generate_random_packet();
+		interrupt_block(&interrupt);
+		datapuffer_write(puffer, (void*) packet);
+		interrupt_unblock(&interrupt);
+	}while(1);
+}
+
+void flusher(int signum)
+{
+	int32_t i, c;
+	packet_t *packet;
+	for(i = 0, c = puffer->count; i < c; ++i){
+		packet = (packet_t*) datapuffer_read(puffer);
+		//do something
+	}
+}
+//-------------------- Example 2.2. --------------------
+
+Between the interrupt_block(&interrupt) and interrupt_unblock(&interrupt)
+the interrupt is blocked, and if it happens between these blocks the flusher 
+will call after the unblock.
+
+
+------------------------------------------------------------------------------------------
+---------------------------- 3. Timers  --------------------------------------------
+------------------------------------------------------------------------------------------
+
+//---------------------------------------------------
+#include "devclego/lib_interrupting.h"
+
+//defined in another thread
+datapuffer_t *puffer;
+mutex_t *mutex; 
+
+timerfd_t *timer;
+void flusher()
+{
+	int32_t i, c;
+	packet_t *packet;
+	
+	timer = timer_ctor();
+	
+	//set_timeinterval(interrupt_ptr,  seconds, miliseconds, microseconds, nanoseconds);
+	set_timeinterval(&timer->initial, 0, 0, 0, 1);
+	set_timeinterval(&timer->period, 0, 16, 0, 0);
+	timer_arm(timer);
+	
+	while(1){
+		timer_wait(timer);
+		mutex_lock(mutex);
+		for(i = 0, c = puffer->count; i < c; ++i){
+			packet = (packet_t*) datapuffer_read(puffer);
+			//do something
+		}
+		mutex_unlock(mutex);
+	}
+	
+	timer_disarm(timer);
+	timer_dtor(timer);
+}
+
+//--------------------Example 2.3.-------------------
+
+The above example is a variation of realizing a puffer flusher described 
+in section 2.2. timed interrupts.
+
+
+------------------------------------------------------------------------------------------
+---------------------------- 4. Finite State Machine  --------------------------------------------
+------------------------------------------------------------------------------------------
+
+Finite State Machine (FSM) in low-level application is a 
+general concept for organizing behvaioral apects for a possible events.
+[1] http://en.wikipedia.org/wiki/Finite-state_machine
+[2] http://en.wikipedia.org/wiki/Virtual_finite-state_machine
+In devclego there is no predefined library, however here we provide a 
+skeleton for an FSM possibly used in low-level C program.
+
+
+//------------------- fsm.h --------------------------
+#ifndef INCGUARD_FSM_H_
+#define INCGUARD_FSM_H_
+#include "devclego/lib_threading.h"
+
+typedef enum
+{
+	PROGRAM_STATE_HALT              = 1,
+	PROGRAM_STATE_RUN               = 2,
+}program_states_t;
+
+typedef enum
+{
+	PROGRAM_EVENT_START             = 1,
+	PROGRAM_EVENT_STOP              = 2,
+}program_events_t;
+
+typedef struct fsm_struct_t
+{
+	program_states_t     actual;
+	char_t               state_str[255];
+	char_t               event_str[255];
+	void               (*fire)(int32_t, void*);
+	signal_t            *signal;
+}fsm_t;
+
+void fsm_ctor();
+void fsm_dtor();
+fsm_t* get_fsm();
+
+#endif /* INCGUARD_FSM_H_ */
+
+
+//--------------------------------------------------
+//-------------------fsm.c--------------------------
+#include "fsm.h"
+#include "devclego/cmp.h"
+#include "devclego/lib_defs.h"
+#include "db.h"
+
+static void  _fsm_mpt_init();
+static void  _fsm_mpt_deinit();
+#define FSM_NAME_PROGRAM "Program machine"
+
+//Define a component
+CMP_DEF(, 			         /*type of definitions*/
+		fsm_t,       /*type of component*/
+		FSM_NAME_PROGRAM,   /*name of the component*/
+		 _fsm_mpt,        /*variable name of the component*/
+		 fsm_ctor,    /*name of the constructor function implemented automatically*/
+		 fsm_dtor,    /*name of the destructor function implemented automatically*/
+		 _fsm_mpt_init,   /*name of the external function called after construction*/
+		 __NO_TEST_FUNC_,      /*name of the external function called after initialization*/
+		 _fsm_mpt_deinit  /*name of the external function called before destruction*/
+		);
+
+#undef FSM_NAME_PROGRAM
+
+CMP_DEF_GET_PROC(get_fsm, fsm_t, _fsm_mpt);
+
+//fire function
+static void _fsm_fire(int, void*);
+
+//states:
+static program_states_t _halt_transitions(int32_t event, void *arg);
+static program_states_t _run_transitions(int32_t event, void *arg);
+
+//actions
+static void _start();
+static void _stop();
+
+//-----------------------------------------------------
+//----------------- Initialization   ------------------
+//-----------------------------------------------------
+
+void _fsm_mpt_init()
+{
+	CMP_DEF_THIS(fsm_t, _fsm_mpt);
+
+	CMP_BIND(this->fire, _fsm_fire);
+
+	//Construct necessary stuff
+	this->signal = signal_ctor();
+
+	//Init necessary stuff
+	dmap_init();
+
+}
+
+void _fsm_mpt_deinit()
+{
+	CMP_DEF_THIS(fsm_t, _fsm_mpt);
+
+	//Deinit necessary stuff
+	dmap_deinit();
+
+	//Destruct necessary stuff
+	signal_dtor(this->signal);
+}
+
+//-----------------------------------------------------
+//----------------- Fire     --------------------------
+//-----------------------------------------------------
+
+void _fsm_fire(int32_t event, void *arg)
+{
+	CMP_DEF_THIS(fsm_t, _fsm_mpt);
+
+	switch(this->actual)
+	{
+	case PROGRAM_STATE_RUN:
+		this->actual = _run_transitions(event, arg);
+			break;
+	case PROGRAM_STATE_HALT:
+		this->actual = _halt_transitions(event, arg);
+			break;
+	default:
+		break;
+	}
+}
+
+//-----------------------------------------------------
+//----------------- Transitions   ---------------------
+//-----------------------------------------------------
+
+program_states_t _halt_transitions(int32_t event, void *arg)
+{
+	CMP_DEF_THIS(fsm_t, get_fsm());
+
+	switch(event)
+	{
+	case PROGRAM_EVENT_START:
+		_start();
+		return PROGRAM_STATE_RUN;
+		break;
+	default:
+		break;
+	}
+
+	return this->actual;
+}
+
+program_states_t _run_transitions(int32_t event, void *arg)
+{
+	CMP_DEF_THIS(fsm_t, get_fsm());
+
+	switch(event)
+	{
+	case PROGRAM_EVENT_STOP:
+		_stop();
+		return PROGRAM_STATE_HALT;
+		break;
+	default:
+		break;
+	}
+
+	return this->actual;
+}
+
+//-----------------------------------------------------
+//----------------- Actions  --------------------------
+//-----------------------------------------------------
+
+void _start()
+{
+	printf("Action start is performed\n");
+}
+
+void _stop()
+{
+	printf("Action stop is performed\n");
+}
+
+//--------------------Example 4.1.-------------------
+
+And yes, here there are some unexplained definitions, such as 
+CMP_BIND, CMP_DEF, etc... all these are explained in cmp_examples.c
+
+Comments:
+  - If events and transmission has been a slightly large number it 
+  is better to define transitions in separated file.
+  - _start(), _stop() actions are good for an instance 
+  starting and stopping threads necessary for applications.
+ 
+------------------------------------------------------------------------------------------
+---------------------------- 5. Datapuffer  --------------------------------------------
+------------------------------------------------------------------------------------------
+
+Two types of circular datapuffer is implemented in devclego:
+a single headed circular datapuffer, and a multiheaded circular datapuffer.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+5.1. Single headed circular puffer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+//--------------------------------------------------
+#include "lib_puffers.h"
+
+void foo()
+{
+	datapuffer_t *puffer = datapuffer_ctor(10);
+	int32_t       numbers[10], i, *item;
+	for(i = 0; i < 10; ++i){
+		numbers[i] = i;
+		datapuffer_write(puffer, &numbers[i]);
+		printf("Item written into the puffer: %d\n", numbers[i]);
+	}
+	
+	for(i = 0; i < 10; ++i){
+		item = (int32_t *) datapuffer_read(puffer);
+		printf("Item read from the puffer: %d\n", *item);
+	}
+	
+	datapuffer_dtor(puffer);
+}
+
+//------------------Example 5.1---------------------
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+5.2. Multiheaded circular puffer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Under revision and test.
+
+------------------------------------------------------------------------------------------
+---------------------------- 6. Callbacks  --------------------------------------------
+------------------------------------------------------------------------------------------
+
+
+//--------------------------------------------------
+#include "lib_makers.h"
+
+void foo_sa();
+void foo_pa(void*);
+
+void foo()
+{
+	callback_t *callback;
+	int32_t number = 5;
+	
+	callback = make_callback_sa(foo_sa);
+	execute_callback(callback);
+	callback_dtor(callback);
+	
+	callback = make_callback_pa(foo_pa, (void*) &number);
+	execute_callback(callback);
+	callback_dtor(callback);
+}
+
+void foo_sa()
+{
+	printf("simple foo action is called");
+}
+
+void foo_pa(void *arg)
+{
+	int32_t *number = (int32_t*) arg;
+	printf("parameterized foo action is called with argument value of %d", *number);
+}
+
+//------------------Example 6.1---------------------
+
