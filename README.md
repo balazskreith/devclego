@@ -6,7 +6,7 @@ processing data using threads, signals, puffers and arbitrary connectable compon
  
 # Developer manuals:
 
-https://docs.google.com/document/d/1ox-GiReAYfGu9IInx-9sSNMzNqjF_BCSVMgqBX09cv4/edit?usp=sharing
+https://docs.google.com/document/d/1ox-GiReAYfGu9IInx-9sSNMzNqjF_BCSVMgqBX09cv4/pub
 
 # License
 
