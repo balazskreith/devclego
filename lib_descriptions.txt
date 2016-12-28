@@ -309,8 +309,7 @@ Next to locks there are two syncronization method implemented in the devclego.
 °°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°°
 
 It is called conditional waiting and the name confuses with the operating system 
-signals. Why It is renamed here? Because I named like this.
-A process send a signal to another and the other wait for it. 
+signals. A process send a signal to another one, which waits for it. 
 Operating system signals are called interrupts in devclego. 
 
 Description: 
@@ -400,7 +399,7 @@ void sigint_handler(int signum)
 
 In init_interrupt(&interrupt, SIGINT, BOOL_TRUE), the SIGINT is the signal number
 the operating system (Linux) send to the process, the third parameter
-indicates weather the siganl is initially blocked or not. 
+indicates weather the signal is initially blocked or not. 
 Blocked signals will be not handled until its unblocked.
 set_interrupt_sh defines a simple handler for interrupt.
 
