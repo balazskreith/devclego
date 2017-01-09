@@ -5,7 +5,7 @@ Devclego is a skeleton for writing a program in C language, in order to process 
 
 # Developer manuals:
 
-goo.gl/jTOXf9
+http://goo.gl/jTOXf9
 
 
 # License
