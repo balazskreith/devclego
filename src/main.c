@@ -16,7 +16,7 @@
  * exit_signal interrupts the program and executes the eit_handler if ctrl+c is pressed
  * */
 static interrupt_t exit_signal;
-
+static volatile int running = 1;
 /**/
 static void init_sysio();
 static void program(struct arg_int  *time);
@@ -99,9 +99,7 @@ exit:
 void _exit_handler(int sgno)
 {
   CRITICALPRINT("%s", "The program is terminated");
-  get_fsm()->fire(EVENT_STOP, NULL);
-  get_fsm()->fire(EVENT_SHUTDOWN, NULL);
-  fsm_dtor();
+  running = 0;
 }
 
 void program(struct arg_int  *time)
@@ -117,7 +115,7 @@ void program(struct arg_int  *time)
       INFOPRINT("The program is going to be terminated %d sec later", *(time->ival));
     }
 
-    while(1){
+    while(running){
       thread_sleep(1000);
       if(time->count && *(time->ival) < ++sec){
         break;

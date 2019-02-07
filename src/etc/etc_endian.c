@@ -16,10 +16,10 @@ endian_types_t get_system_endianness(void)
 
 	switch (value)
 	{
-	case UINT32_C(0x00010203): return ENDIAN_BIG;
-	case UINT32_C(0x03020100): return ENDIAN_LITTLE;
-	case UINT32_C(0x02030001): return ENDIAN_BIG_WORD;
-	case UINT32_C(0x01000302): return ENDIAN_LITTLE_WORD;
+	case __UINT32_C(0x00010203): return ENDIAN_BIG;
+	case __UINT32_C(0x03020100): return ENDIAN_LITTLE;
+	case __UINT32_C(0x02030001): return ENDIAN_BIG_WORD;
+	case __UINT32_C(0x01000302): return ENDIAN_LITTLE_WORD;
 	default:                   return ENDIAN_UNKNOWN;
 	}
 }
@@ -70,4 +70,3 @@ bool_t set_bytes_for_receiving(void *dst, void *src, int32_t size)
 	}
 	return BOOL_TRUE;
 }
-
