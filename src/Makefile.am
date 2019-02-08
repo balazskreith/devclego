@@ -1,8 +1,8 @@
 AM_CPPFLAGS = -Iinc -Icmp -Idmap -Ifsm -Ilib -Isys -Ietc -std=gnu99
 LIBS = -lpthread -lm -lcrypto -lssl -lrt
 
-bin_PROGRAMS = $(top_builddir)/bin/devclego
-__top_builddir__bin_devclego_SOURCES =      \
+bin_PROGRAMS = $(top_builddir)/bin/service
+__top_builddir__bin_service_SOURCES =      \
 			main.c                    \
 			cmp/cmp_defs.h            \
 			cmp/cmp_defs.c            \
@@ -78,5 +78,4 @@ __top_builddir__bin_devclego_SOURCES =      \
 			lib/lib_vector.c          \
 			sys/sys_confs.h           \
 			sys/sys_confs.c           \
-			sys/sys_predefs.h         
-
+			sys/sys_predefs.h

@@ -89,7 +89,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-bin_PROGRAMS = $(top_builddir)/bin/devclego$(EXEEXT)
+bin_PROGRAMS = $(top_builddir)/bin/service$(EXEEXT)
 subdir = src
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
@@ -101,7 +101,7 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am___top_builddir__bin_devclego_OBJECTS = main.$(OBJEXT) \
+am___top_builddir__bin_service_OBJECTS = main.$(OBJEXT) \
 	cmp_defs.$(OBJEXT) cmp_predefs.$(OBJEXT) cmp_tests.$(OBJEXT) \
 	dmap_sel.$(OBJEXT) dmap.$(OBJEXT) etc_argtable2.$(OBJEXT) \
 	etc_dict.$(OBJEXT) etc_endian.$(OBJEXT) \
@@ -116,9 +116,9 @@ am___top_builddir__bin_devclego_OBJECTS = main.$(OBJEXT) \
 	lib_swplugins.$(OBJEXT) lib_queue.$(OBJEXT) \
 	lib_threading.$(OBJEXT) lib_tors.$(OBJEXT) \
 	lib_vector.$(OBJEXT) sys_confs.$(OBJEXT)
-__top_builddir__bin_devclego_OBJECTS =  \
-	$(am___top_builddir__bin_devclego_OBJECTS)
-__top_builddir__bin_devclego_LDADD = $(LDADD)
+__top_builddir__bin_service_OBJECTS =  \
+	$(am___top_builddir__bin_service_OBJECTS)
+__top_builddir__bin_service_LDADD = $(LDADD)
 am__dirstamp = $(am__leading_dot)dirstamp
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -152,8 +152,8 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(__top_builddir__bin_devclego_SOURCES)
-DIST_SOURCES = $(__top_builddir__bin_devclego_SOURCES)
+SOURCES = $(__top_builddir__bin_service_SOURCES)
+DIST_SOURCES = $(__top_builddir__bin_service_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -278,7 +278,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AM_CPPFLAGS = -Iinc -Icmp -Idmap -Ifsm -Ilib -Isys -Ietc -std=gnu99
-__top_builddir__bin_devclego_SOURCES = \
+__top_builddir__bin_service_SOURCES = \
 			main.c                    \
 			cmp/cmp_defs.h            \
 			cmp/cmp_defs.c            \
@@ -354,7 +354,7 @@ __top_builddir__bin_devclego_SOURCES = \
 			lib/lib_vector.c          \
 			sys/sys_confs.h           \
 			sys/sys_confs.c           \
-			sys/sys_predefs.h         
+			sys/sys_predefs.h
 
 all: all-am
 
@@ -435,9 +435,9 @@ $(top_builddir)/bin/$(am__dirstamp):
 	@$(MKDIR_P) $(top_builddir)/bin
 	@: > $(top_builddir)/bin/$(am__dirstamp)
 
-$(top_builddir)/bin/devclego$(EXEEXT): $(__top_builddir__bin_devclego_OBJECTS) $(__top_builddir__bin_devclego_DEPENDENCIES) $(EXTRA___top_builddir__bin_devclego_DEPENDENCIES) $(top_builddir)/bin/$(am__dirstamp)
-	@rm -f $(top_builddir)/bin/devclego$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(__top_builddir__bin_devclego_OBJECTS) $(__top_builddir__bin_devclego_LDADD) $(LIBS)
+$(top_builddir)/bin/service$(EXEEXT): $(__top_builddir__bin_service_OBJECTS) $(__top_builddir__bin_service_DEPENDENCIES) $(EXTRA___top_builddir__bin_service_DEPENDENCIES) $(top_builddir)/bin/$(am__dirstamp)
+	@rm -f $(top_builddir)/bin/service$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(__top_builddir__bin_service_OBJECTS) $(__top_builddir__bin_service_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)

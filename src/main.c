@@ -12,6 +12,8 @@
 #include "etc_argtable2.h"
 #include "lib_interrupting.h"
 
+#define DEVCLEGO_VERSION "0.9.1.0"
+
 /*An example for using interrupts inside of the program.
  * exit_signal interrupts the program and executes the eit_handler if ctrl+c is pressed
  * */
@@ -66,7 +68,6 @@ int main(int argc, char **argv)
     {
       INFOPRINT("Usage: %s", __progname__);
       arg_print_syntax(stdout,argtable,"\n");
-      INFOPRINT("Network Traffic Rate Tracker (ntrt).\n\n");
       arg_print_glossary(stdout,argtable,"  %-20s %s\n");
       exitcode=0;
       goto exit;
@@ -82,6 +83,7 @@ int main(int argc, char **argv)
       goto exit;
     }
 
+    INFOPRINT("Service build by using devclego version %s.\n\n", DEVCLEGO_VERSION);
 
     /*devclego starts here
      * Build the abstract finite state machine by ceating it
@@ -107,7 +109,7 @@ void program(struct arg_int  *time)
     int sec = 0;
 
     /*Firing the FSM so lanch the program*/
-    get_fsm()->fire(EVENT_SETUP, NULL);
+    get_fsm()->fire(EVENT_SETUP, NULL); /* TODO: if you have a config file use the path instead of null */
     get_fsm()->fire(EVENT_START, NULL);
 
     //If time argument is given the program terminates itself automatically
