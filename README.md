@@ -1,8 +1,7 @@
 Devclego
 ===
 
-Devclego is a lightweight skeleton for services written in C programming language. It is intended to be used to create services in a low-level programming language capable of processing
-data and react external events. The skeleton contains libraries and predefined macros for threading, making connectable components and create finite state machine.
+Devclego is a lightweight skeleton to create services in a low-level programming language capable of processing data and react external events. The skeleton contains libraries and predefined macros for threading, making connectable components and create finite state machine.
 
 ## Table of contents
 
@@ -41,15 +40,15 @@ You need to add your application logic follows the skeleton scheme if you want t
 
 ## 2. Developer manuals
 
-In order to develop using devclego efficiently you need to understand
+In order to develop using Devclego efficiently you need to understand
 how the directory structure is intended to be used, how you can
 create and connect components, and how you can use events
 in a finite state machine to trigger actions and change the service
-behaviour.
+behavior.
 
 ### 2.1 High level overview
 
-The service written in devclego, processing data and react to events are using the
+The service written in Devclego, processing data and react to events are using the
 following techniques:
 
  - **Datamap**: A managed globally available shared data to store configurations

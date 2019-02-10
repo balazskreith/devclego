@@ -3,6 +3,8 @@ Components in Devclego
 
 ## 1. Concept
 
+
+
 ## 2. Predefined macros
 
 **CMP_DEF_THIS(cmp_foo_t, _bar)**: Declare a
