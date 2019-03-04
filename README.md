@@ -187,7 +187,7 @@ Library contains collections, interruptions, signals, buffers, and other basic l
 
 ## 3. Bugs and feature requests
 
-I appreciate every comments, and bug requests you do, please create an issue for each.
+I appreciate every comments, and bugfix requests you do, please create an issue for each.
 
 
 ## 4. Contributing
